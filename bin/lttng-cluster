@@ -1,5 +1,5 @@
-!#/usr/bin/env python
+#!/usr/bin/env python
 
-import lttngcluster
+from lttngcluster import cli
 
-lttngcluster.cli.main()
+cli.main()
