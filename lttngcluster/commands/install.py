@@ -1,6 +1,7 @@
 from lttngcluster.commands.base import BaseCommand
 
 from fabric.api import task, run, parallel, execute, sudo, cd, env
+from fabric.network import disconnect_all
 #from fabric.decorators import with_settings
 
 import string
@@ -61,3 +62,4 @@ class InstallCommand(BaseCommand):
         exe = actions[args.action]
         env.user=args.user
         execute(exe, hosts=hosts_list)
+        disconnect_all()
