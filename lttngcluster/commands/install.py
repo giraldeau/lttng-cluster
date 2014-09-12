@@ -1,6 +1,6 @@
 from lttngcluster.commands.base import BaseCommand
 
-from fabric.api import task, run, parallel, execute, sudo, cd
+from fabric.api import task, run, parallel, execute, sudo, cd, env
 #from fabric.decorators import with_settings
 
 import string
@@ -57,6 +57,7 @@ class InstallCommand(BaseCommand):
     def arguments(self, parser):
         parser.add_argument('action', choices=actions.keys(), help='install action');
     def handle(self, args):
-        hosts_list = string.split(args.hosts, ',')
+        hosts_list = string.split(args.hosts[0], ',')
         exe = actions[args.action]
+        env.user=args.user
         execute(exe, hosts=hosts_list)
