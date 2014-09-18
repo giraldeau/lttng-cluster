@@ -19,7 +19,7 @@ apt-get install -y lttng-tools babeltrace avahi-utils avahi-daemon git make linu
 
 # install modules
 # FIXME: avoid hardcoding the path to the repo
-test -e ~/lttng-modules || git clone https://github.com/giraldeau/lttng-modules.git
+test -e ~/lttng-modules || git clone git://git.dorsal.polymtl.ca/~fgiraldeau/lttng-modules.git ~/lttng-modules
 cd ~/lttng-modules
 git checkout addons
 git pull

@@ -1,4 +1,4 @@
-from lttngcluster.commands.base import BaseCommand
+from lttngcluster.commands.base import ActionCommand
 
-class TraceCommand(BaseCommand):
+class TraceCommand(ActionCommand):
     pass
