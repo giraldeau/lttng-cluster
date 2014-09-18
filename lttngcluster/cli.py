@@ -11,9 +11,9 @@ cmds = {
 
 def main():
     parser = argparse.ArgumentParser(description='LTTng Cluster')
-    parser.add_argument('-H', '--hosts', dest='hosts', nargs=1,
+    parser.add_argument('-H', '--hosts', dest='hosts', required=True,
                         metavar='HOST', type=str, help='hosts string')
-    parser.add_argument('-u', '--user', dest='user', nargs=1,
+    parser.add_argument('-u', '--user', dest='user',
                         default=os.getlogin(), metavar='USER',
                         type=str, help='connection username')
     sub = parser.add_subparsers(help="sub-command help");

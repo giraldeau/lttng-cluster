@@ -1,9 +1,15 @@
 
 def setup():
-    print("SETUP!")
+    pass
 
 def teardown():
-    print("TEAR DOWN!")
+    pass
 
-def test_basic():
-    print("I RAN!")
+def test_load_script():
+    from lttngcluster.commands import install
+    cases = [ 'scripts/install-client.sh',
+              'http://google.com',
+              'https://google.com' ]
+    for case in cases:
+        cnt = install.load_script(case)
+        assert len(cnt) > 0
