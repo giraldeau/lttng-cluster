@@ -49,10 +49,15 @@ def reboot(args):
 def connect(args):
     sudo('date')
 
+@task
+def addons(args):
+    sudo("control-addons.sh load")
+
 class InstallCommand(ActionCommand):
     actions = {
         'runscript': runscript,
         'check': check,
+        'addons': addons,
         'reboot': reboot,
         'connect': connect,
     }
