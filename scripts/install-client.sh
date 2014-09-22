@@ -30,6 +30,8 @@ install control-addons.sh /usr/local/bin
 echo 'search extra updates ubuntu built-in' > /etc/depmod.d/ubuntu.conf
 depmod -a
 
+usermod $USER -a -G tracing
+
 # publish the client with Avahi
 cat > /etc/init/avahi-publish-lttng.conf << EOF
 start on (started lttng-sessiond and started avahi-daemon)
