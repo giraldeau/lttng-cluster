@@ -1,7 +1,9 @@
+import copy
 from fabric.api import task, run, local, parallel, env, get
 from fabric.tasks import execute
+import yaml
 
-default_lttng_kernel_events = [
+default_kernel_events = [
     "sched_ttwu",
     "sched_switch",
     "sched_process_fork",
@@ -20,6 +22,9 @@ default_lttng_kernel_events = [
     "lttng_statedump_start",
 ]
 
+default_userspace_events = []
+default_username = 'ubuntu'
+
 env.tracename = "default"
 
 def run_bg(cmd):
@@ -28,11 +33,11 @@ def run_bg(cmd):
 @parallel
 def trace_start():
     run("lttng destroy -a")
-    run("rm -rf ~/lttng-traces/*") # FIXME: trace to a tmp directory
+    run("rm -rf ~/lttng-traces/*")  # FIXME: trace to a tmp directory
     ctx = { "host": env.host, "tracename": env.tracename }
     run("lttng create peer-%(host)s -o ~/lttng-traces/%(tracename)s" % ctx)
     run("lttng enable-channel k -k --subbuf-size 16384 --num-subbuf 4096")
-    ev_string = ",".join(default_lttng_kernel_events)
+    ev_string = ",".join(default_kernel_events)
     run("lttng enable-event -k -c k %s" % ev_string)
     run("lttng enable-event -k -c k -a --syscall")
     run("lttng add-context -k -c k -t tid -t procname")
@@ -43,12 +48,20 @@ def trace_stop():
     run("lttng stop")
     run("lttng destroy -a")
 
-#TODO: fix this command
+# TODO: fix this command
 @task
 def trace_fetch():
     print("fetch trace %s" % (env.tracename))
-    #get("/home/ubuntu/lttng-traces/%s/*" % (env.tracename), env.dest + "/%(host)s/%(path)s")
-    #run("rm -rf ~/lttng-traces/%s" % (env.tracename))
+    # get("/home/ubuntu/lttng-traces/%s/*" % (env.tracename), env.dest + "/%(host)s/%(path)s")
+    # run("rm -rf ~/lttng-traces/%s" % (env.tracename))
+
+def merge_dict(dst, src):
+    for k in src.keys():
+        if (isinstance(dst.get(k, None), dict) and
+            isinstance(src.get(k, None), dict)):
+            merge_dict(dst[k], src[k])
+        else:
+            dst[k] = src[k]
 
 class TraceRunner(object):
     '''Run an experiment under tracing'''
@@ -64,12 +77,40 @@ class TraceRunner(object):
 
 class TraceExperiment(object):
     '''Experiment definition'''
+
     def before(self):
         print("before")
     def after(self):
         print("after")
     def action(self):
         print("action")
+
+class TraceExperimentOptions(object):
+
+    default_options = {
+        'experiment': None,
+        'username': default_username,
+        'events': {
+            'kernel': default_kernel_events,
+            'userspace': default_userspace_events
+        },
+        'rolesdef': {},
+        'params': {}
+    }
+
+    def __init__(self):
+        self._options = copy.copy(TraceExperimentOptions.default_options)
+
+    def load_path(self, path):
+        with open(path) as f:
+            self.load(f, 'r')
+
+    def load(self, stream):
+        opt = yaml.load(stream)
+        merge_dict(self._options, opt)
+
+    def __getitem__(self, key):
+        return self._options[key]
 
 class TraceExperimentSimple(TraceExperiment):
     def __init__(self, cmd='date'):

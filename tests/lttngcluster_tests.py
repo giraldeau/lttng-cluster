@@ -38,3 +38,24 @@ def test_register_experiment():
     assert isinstance(exp, TraceExperiment)
     assert isinstance(exception1, AlreadyRegistered)
     assert isinstance(exception2, NotRegistered)
+
+def test_load_options():
+    from lttngcluster.api import TraceExperimentOptions
+    from lttngcluster.api import default_username
+
+    override = 'foo'
+    recipe = '''username: %s''' % (override)
+
+    opts = TraceExperimentOptions()
+    assert opts['username'] == default_username
+    opts.load(recipe)
+    assert opts['username'] == override
+
+def test_merge_dict():
+    from lttngcluster.api import merge_dict
+
+    dst = { 'a' : 'a', 'b': 'b', 'c': { 'a': 'a', 'b': 'b' } }
+    src = { 'a' : 'x', 'd': 'x', 'c': { 'a': 'x', 'c': 'x' } }
+    exp = { 'a' : 'x', 'b': 'b', 'c': { 'a': 'x', 'b': 'b', 'c': 'x' }, 'd': 'x' }
+    merge_dict(dst, src)
+    assert exp == dst
