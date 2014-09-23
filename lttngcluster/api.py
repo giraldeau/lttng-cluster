@@ -1,8 +1,9 @@
-import copy
-from fabric.api import task, run, local, parallel, env, get
+from collections import OrderedDict
+from fabric.api import task, run, local, parallel, env
 from fabric.tasks import execute
 from os.path import dirname, join
 import yaml
+
 
 default_kernel_events = [
     "sched_ttwu",
@@ -78,7 +79,12 @@ class TraceRunner(object):
 
 class TraceExperiment(object):
     '''Experiment definition'''
-
+    def __init__(self):
+        self._options = {}
+    def set_options(self, options):
+        self._options = options
+    def get_options(self):
+        return self._options
     def before(self):
         print("before")
     def after(self):
@@ -103,6 +109,7 @@ class TraceExperimentOptions(dict):
 
     def __init__(self, *args, **kwargs):
         self._loaded = []
+        self._hosts = []
         super(TraceExperimentOptions, self).__init__(*args, **kwargs)
 
     def load_path(self, path):
@@ -121,14 +128,25 @@ class TraceExperimentOptions(dict):
             if opt.has_key(self.import_key):
                 del opt[self.import_key]
             merge_dict(self, opt)
+        self._update_hosts()
 
     def load(self, stream):
         opt = yaml.load(stream)
         merge_dict(self, opt)
+        self._update_hosts()
 
-class TraceExperimentSimple(TraceExperiment):
-    def __init__(self, cmd='date'):
-        self.cmd = cmd
-        super(TraceExperimentSimple, self).__init__()
-    def action(self):
-        local(self.cmd)
+    def get_hosts(self):
+        return self._hosts
+
+    def _update_hosts(self):
+        hosts = []
+        roles = self.get('rolesdef', {})
+        for k, v in roles.items():
+            if isinstance(v, list):
+                hosts += v
+            elif isinstance(v, str):
+                hosts.append(v)
+            else:
+                raise TypeError("invalid type for rolesdef %s" % k)
+        self._hosts = list(OrderedDict.fromkeys(hosts))
+

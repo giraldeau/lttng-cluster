@@ -15,9 +15,8 @@ def test_load_script():
         assert len(cnt) > 0
 
 def test_register_experiment():
-    from lttngcluster.experiments import registry
     from lttngcluster.api import TraceExperiment
-    from lttngcluster.experiments import AlreadyRegistered, NotRegistered
+    from lttngcluster.experiments.reg import registry, AlreadyRegistered, NotRegistered
 
     class TestExperiment(TraceExperiment):
         pass

@@ -1,5 +1,4 @@
 # Experiment registration, similar to Django model admin registration
-
 class AlreadyRegistered(Exception):
     pass
 
