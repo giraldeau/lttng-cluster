@@ -46,7 +46,8 @@ def test_load_options():
     override = 'foo'
     recipe = '''username: %s''' % (override)
 
-    opts = TraceExperimentOptions()
+    opts = TraceExperimentOptions(**TraceExperimentOptions.default_options)
+    print(opts)
     assert opts['username'] == default_username
     opts.load(recipe)
     assert opts['username'] == override
@@ -59,3 +60,30 @@ def test_merge_dict():
     exp = { 'a' : 'x', 'b': 'b', 'c': { 'a': 'x', 'b': 'b', 'c': 'x' }, 'd': 'x' }
     merge_dict(dst, src)
     assert exp == dst
+
+def test_load_include():
+    from lttngcluster.api import TraceExperimentOptions
+    import tempfile
+    from os.path import join
+    from shutil import rmtree
+
+    content = { 'a.yaml': '''a: a\nb: b''',
+                'b.yaml': '''import: a\nb: x\nz: z''',
+                'c.yaml': '''import: b\nb: y\nc: c''',
+    }
+    exp = { 'a': 'a', 'b': 'y', 'c': 'c', 'z': 'z' }
+    d = tempfile.mkdtemp()
+    for k, v in content.items():
+        with file(join(d, k), 'w+') as f:
+            f.write(v)
+
+    opts = TraceExperimentOptions()
+    try:
+        opts.load_path(join(d, 'c.yaml'))
+    finally:
+        rmtree(d)
+
+    print(exp)
+    print(opts)
+
+    assert opts == exp

@@ -1,6 +1,7 @@
 import copy
 from fabric.api import task, run, local, parallel, env, get
 from fabric.tasks import execute
+from os.path import dirname, join
 import yaml
 
 default_kernel_events = [
@@ -85,7 +86,7 @@ class TraceExperiment(object):
     def action(self):
         print("action")
 
-class TraceExperimentOptions(object):
+class TraceExperimentOptions(dict):
 
     default_options = {
         'experiment': None,
@@ -95,22 +96,35 @@ class TraceExperimentOptions(object):
             'userspace': default_userspace_events
         },
         'rolesdef': {},
-        'params': {}
+        'params': {},
     }
 
-    def __init__(self):
-        self._options = copy.copy(TraceExperimentOptions.default_options)
+    import_key = 'import'
+
+    def __init__(self, *args, **kwargs):
+        self._loaded = []
+        super(TraceExperimentOptions, self).__init__(*args, **kwargs)
 
     def load_path(self, path):
         with open(path) as f:
-            self.load(f, 'r')
+            opt = yaml.load(f)
+            # load submodule
+            imp = opt.get(self.import_key, [])
+            if not hasattr(imp, '__iter__'):
+                imp = [imp]
+            for mod in imp:
+                if mod not in self._loaded:
+                    self._loaded.append(mod)
+                    base = dirname(path)
+                    p = join(base, mod + '.yaml')
+                    self.load_path(p)
+            if opt.has_key(self.import_key):
+                del opt[self.import_key]
+            merge_dict(self, opt)
 
     def load(self, stream):
         opt = yaml.load(stream)
-        merge_dict(self._options, opt)
-
-    def __getitem__(self, key):
-        return self._options[key]
+        merge_dict(self, opt)
 
 class TraceExperimentSimple(TraceExperiment):
     def __init__(self, cmd='date'):
