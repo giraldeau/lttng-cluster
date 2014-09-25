@@ -1,7 +1,8 @@
 from collections import OrderedDict
-from fabric.api import task, run, local, parallel, env
+from fabric.api import task, run, local, parallel, env, get
 from fabric.tasks import execute
-from os.path import dirname, join
+from os.path import dirname, basename, join
+import time
 import yaml
 
 
@@ -26,6 +27,8 @@ default_kernel_events = [
 
 default_userspace_events = []
 default_username = 'ubuntu'
+default_trace_name = 'auto'
+default_trace_dir = '~/lttng-traces'
 
 env.tracename = "default"
 
@@ -33,28 +36,31 @@ def run_bg(cmd):
     run('nohup %s > cmd.out 2> cmd.err < /dev/null &' % (cmd), pty=False)
 
 @parallel
-def trace_start():
+def trace_start(opts):
+    dest = opts.get_trace_dir()
     run("lttng destroy -a")
-    run("rm -rf ~/lttng-traces/*")  # FIXME: trace to a tmp directory
-    ctx = { "host": env.host, "tracename": env.tracename }
-    run("lttng create peer-%(host)s -o ~/lttng-traces/%(tracename)s" % ctx)
+    run("test -f /usr/local/bin/control-addons.sh && control-addons.sh load")
+    run("lttng create -o %s" % dest)
     run("lttng enable-channel k -k --subbuf-size 16384 --num-subbuf 4096")
-    ev_string = ",".join(default_kernel_events)
+    kev = opts.get('events', {}).get('kernel', default_kernel_events)
+    ev_string = ",".join(kev)
     run("lttng enable-event -k -c k %s" % ev_string)
     run("lttng enable-event -k -c k -a --syscall")
     run("lttng add-context -k -c k -t tid -t procname")
     run("lttng start")
 
 @parallel
-def trace_stop():
+def trace_stop(opts):
     run("lttng stop")
     run("lttng destroy -a")
 
-# TODO: fix this command
 @task
-def trace_fetch():
-    print("fetch trace %s" % (env.tracename))
-    # get("/home/ubuntu/lttng-traces/%s/*" % (env.tracename), env.dest + "/%(host)s/%(path)s")
+def trace_fetch(opts):
+    dest = opts.get_trace_dir()
+    print("fetch trace %s" % (dest))
+    remote_src = join(dest, "*")
+    local_dst = join(dest, "%(host)s", "%(path)s")
+    get(remote_src, local_dst)
     # run("rm -rf ~/lttng-traces/%s" % (env.tracename))
 
 def merge_dict(dst, src):
@@ -65,17 +71,17 @@ def merge_dict(dst, src):
         else:
             dst[k] = src[k]
 
-class TraceRunner(object):
+class TraceRunnerDefault(object):
     '''Run an experiment under tracing'''
-    def __init__(self, exp):
-        self.exp = exp
-    def run(self):
-        self.exp.before()
-        execute(trace_start)
-        self.exp.action()
-        execute(trace_stop)
-        self.exp.after()
-        execute(trace_fetch)
+    def run(self, exp):
+        opts = exp.get_options()
+        hosts_list = opts.get_hosts()
+        exp.before()
+        execute(trace_start, opts, hosts=hosts_list)
+        exp.action()
+        execute(trace_stop, opts, hosts=hosts_list)
+        exp.after()
+        execute(trace_fetch, opts, hosts=hosts_list)
 
 class TraceExperiment(object):
     '''Experiment definition'''
@@ -95,6 +101,7 @@ class TraceExperiment(object):
 class TraceExperimentOptions(dict):
 
     default_options = {
+        'name': default_trace_name,
         'experiment': None,
         'username': default_username,
         'events': {
@@ -103,18 +110,24 @@ class TraceExperimentOptions(dict):
         },
         'rolesdef': {},
         'params': {},
+        'tracedir' : default_trace_dir,
     }
 
     import_key = 'import'
+    name_key = 'name'
+    yaml_ext = ".yaml"
 
     def __init__(self, *args, **kwargs):
         self._loaded = []
         self._hosts = []
+        self._time = time.strftime("%Y%m%d-%H%M%S")
         super(TraceExperimentOptions, self).__init__(*args, **kwargs)
 
     def load_path(self, path):
         with open(path) as f:
             opt = yaml.load(f)
+            if opt is None:
+                opt = {}
             # load submodule
             imp = opt.get(self.import_key, [])
             if not hasattr(imp, '__iter__'):
@@ -127,13 +140,27 @@ class TraceExperimentOptions(dict):
                     self.load_path(p)
             if opt.has_key(self.import_key):
                 del opt[self.import_key]
+            if not opt.has_key('name') and \
+                    path.endswith(self.yaml_ext):
+                name = basename(path[:-len(self.yaml_ext)])
+                self['name'] = name
             merge_dict(self, opt)
         self._update_hosts()
 
     def load(self, stream):
         opt = yaml.load(stream)
+        if opt is None:
+            opt = {}
         merge_dict(self, opt)
         self._update_hosts()
+
+    def get_trace_dir(self, **kwargs):
+        base = self.get('tracedir', default_trace_dir)
+        name = self.get('name', default_trace_name)
+        name = "%s-%s" % (name, self._time)
+        for k,v in kwargs.items():
+            name = "%s-%s=%s" % (name, k, v)
+        return join(base, name)
 
     def get_hosts(self):
         return self._hosts

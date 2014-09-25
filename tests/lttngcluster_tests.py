@@ -1,3 +1,4 @@
+from lttngcluster.api import default_trace_dir
 
 def setup():
     pass
@@ -66,11 +67,11 @@ def test_load_include():
     from os.path import join
     from shutil import rmtree
 
-    content = { 'a.yaml': '''a: a\nb: b''',
-                'b.yaml': '''import: a\nb: x\nz: z''',
-                'c.yaml': '''import: b\nb: y\nc: c''',
+    content = { 'recipe_a.yaml': '''a: a\nb: b''',
+                'recipe_b.yaml': '''import: recipe_a\nb: x\nz: z''',
+                'recipe_c.yaml': '''import: recipe_b\nb: y\nc: c''',
     }
-    exp = { 'a': 'a', 'b': 'y', 'c': 'c', 'z': 'z' }
+    exp = { 'a': 'a', 'b': 'y', 'c': 'c', 'z': 'z', 'name': 'recipe_c' }
     d = tempfile.mkdtemp()
     for k, v in content.items():
         with file(join(d, k), 'w+') as f:
@@ -78,7 +79,7 @@ def test_load_include():
 
     opts = TraceExperimentOptions()
     try:
-        opts.load_path(join(d, 'c.yaml'))
+        opts.load_path(join(d, 'recipe_c.yaml'))
     finally:
         rmtree(d)
 
@@ -86,3 +87,18 @@ def test_load_include():
     print(opts)
 
     assert opts == exp
+
+def test_trace_dir():
+    from lttngcluster.api import TraceExperimentOptions
+    import os
+    opts = TraceExperimentOptions()
+
+    data = { 'test1': { 'input': { }, 'exp': 'auto-ts' },
+             'test2': { 'input': { 'foo': 'one', 'bar': 2 }, 'exp': 'auto-ts-foo=one-bar=2' }
+    }
+
+    opts._time = 'ts'
+    for k, v in data.items():
+        d = opts.get_trace_dir(**v['input'])
+        print(d)
+        assert d == os.path.join(default_trace_dir, v['exp'])
