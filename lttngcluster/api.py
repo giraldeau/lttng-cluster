@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from fabric.api import task, run, local, parallel, env, get
+from fabric.api import task, run, parallel, env, get
 from fabric.tasks import execute
 from os.path import dirname, basename, join
 import time
@@ -83,6 +83,16 @@ class TraceRunnerDefault(object):
         exp.after()
         execute(trace_fetch, opts, hosts=hosts_list)
 
+class RecipeErrorCollection(object):
+    def __init__(self):
+        self.errors = []
+
+    def add(self, error):
+        self.errors.append(error)
+
+    def __len__(self):
+        return len(self.errors)
+
 class TraceExperiment(object):
     '''Experiment definition'''
     def __init__(self):
@@ -91,12 +101,14 @@ class TraceExperiment(object):
         self._options = options
     def get_options(self):
         return self._options
+    def validate(self, errors):
+        raise NotImplementedError()
     def before(self):
-        print("before")
-    def after(self):
-        print("after")
+        pass
     def action(self):
-        print("action")
+        raise NotImplementedError()
+    def after(self):
+        pass
 
 class TraceExperimentOptions(dict):
 
@@ -158,7 +170,7 @@ class TraceExperimentOptions(dict):
         base = self.get('tracedir', default_trace_dir)
         name = self.get('name', default_trace_name)
         name = "%s-%s" % (name, self._time)
-        for k,v in kwargs.items():
+        for k, v in kwargs.items():
             name = "%s-%s=%s" % (name, k, v)
         return join(base, name)
 

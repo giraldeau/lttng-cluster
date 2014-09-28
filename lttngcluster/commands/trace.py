@@ -1,14 +1,16 @@
 import argparse
 from fabric.api import run, env
 from fabric.network import disconnect_all
+from os.path import exists
 import pprint
 import string
-from os.path import basename, exists
 
-from lttngcluster.api import TraceRunnerDefault, TraceExperimentOptions
+from lttngcluster.api import TraceRunnerDefault, TraceExperimentOptions, \
+    RecipeErrorCollection
 from lttngcluster.commands.base import BaseCommand
 from lttngcluster.experiments.reg import registry
 from lttngcluster.experiments.shell import TraceExperimentShell
+
 
 def cmd_trace_command(args):
     cmd = " ".join(args.script)
@@ -36,6 +38,11 @@ def cmd_trace_recipe(args):
     if exp_class:
         exp_instance = registry.get_experiment(exp_class)
         exp_instance.set_options(opts)
+        err = RecipeErrorCollection()
+        exp_instance.validate(err)
+        if len(err) > 0:
+            pprint.pprint(err)
+            raise Exception("validation error")
         runner = TraceRunnerDefault()
         runner.run(exp_instance)
 

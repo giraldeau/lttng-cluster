@@ -20,4 +20,7 @@ class ExperimentRegistry(object):
             raise NotRegistered('The experiment %s is not registered' % name)
         return self._registry[name]
 
+    def experiments(self):
+        return self._registry
+
 registry = ExperimentRegistry()

@@ -1,4 +1,6 @@
-from lttngcluster.api import default_trace_dir
+from lttngcluster.api import default_trace_dir, RecipeErrorCollection
+from lttngcluster.utils import DictCmpListener
+
 
 def setup():
     pass
@@ -20,7 +22,8 @@ def test_register_experiment():
     from lttngcluster.experiments.reg import registry, AlreadyRegistered, NotRegistered
 
     class TestExperiment(TraceExperiment):
-        pass
+        def validate(self, errors):
+            pass
 
     registry.register(TestExperiment)
     exp = registry.get_experiment('TestExperiment')
@@ -102,3 +105,55 @@ def test_trace_dir():
         d = opts.get_trace_dir(**v['input'])
         print(d)
         assert d == os.path.join(default_trace_dir, v['exp'])
+
+def test_recipe_validate():
+    from lttngcluster.api import TraceExperimentOptions
+    from lttngcluster.experiments import shell, request
+    import pprint
+
+    from lttngcluster.experiments.reg import registry
+
+    exp = registry.experiments()
+    for k, v in exp.items():
+        print('class ' + k)
+        err = RecipeErrorCollection()
+        v.validate(err)
+        pprint.pprint(err)
+
+class DictCmpListenerTest(DictCmpListener):
+    def __init__(self):
+        self.reset();
+        super(DictCmpListenerTest, self).__init__()
+
+    def missing(self, d1, d2, path):
+        print('missing ' + repr(path))
+        self._status['missing'].append(path)
+
+    def present(self, d1, d2, path):
+        print('present ' + repr(path))
+        self._status['present'].append(path)
+
+    def reset(self):
+        self._status = { 'missing': [], 'present': [] }
+
+def test_cmp_dict():
+    from lttngcluster.utils import DictCmp
+    check = DictCmpListenerTest()
+    comparator = DictCmp()
+    comparator.add_listener(check)
+
+    d1 = { 'a': { 'b' : { 'c': 'd' } } }
+    d2 = { 'a': { 'b' : { 'c': 'd' } } }
+    d3 = { 'a': { 'b' : 'c' } }
+
+    exp1 = { 'missing': [ ], 'present': [ ['a'], ['a', 'b'], ['a', 'b', 'c'] ] }
+    exp2 = { 'missing': [ [ 'a', 'b', 'c' ] ], 'present': [ ['a'], ['a', 'b'] ] }
+
+    data = [ (d1, d2, exp1), (d1, d3, exp2) ]
+
+    for tup in data:
+        (foo, bar, exp) = tup
+        comparator.compare(foo, bar)
+        assert check._status == exp
+        check.reset()
+

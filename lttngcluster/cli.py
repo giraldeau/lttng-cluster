@@ -4,6 +4,7 @@ import os
 from lttngcluster.commands.install import InstallCommand
 from lttngcluster.commands.trace import TraceCommand
 
+
 cmds = {
     'install': InstallCommand(),
     'trace': TraceCommand(),
