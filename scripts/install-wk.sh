@@ -9,12 +9,13 @@ if [ "$DISTRIB_ID" != "Ubuntu" ]; then
 fi
 
 # install tools
-apt-get update -q
-apt-get install -q -y liblttng-ust-dev libsensors4-dev build-essential autoconf automake libtool 
+sudo apt-get update -q
+sudo apt-get install -q -y liblttng-ust-dev libsensors4-dev build-essential autoconf automake libtool pkg-config 
 
 test -e ~/workload-kit || git clone https://github.com/giraldeau/workload-kit.git ~/workload-kit
 cd ~/workload-kit
 ./bootstrap
+./configure
 make -j4
 sudo make install
 echo "workload-kit installation done"
