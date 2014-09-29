@@ -1,22 +1,16 @@
 import argparse
-import os
 
 from lttngcluster.commands.install import InstallCommand
-from lttngcluster.commands.trace import TraceCommand
+from lttngcluster.commands.recipe import RecipeCommand
 
 
 cmds = {
     'install': InstallCommand(),
-    'trace': TraceCommand(),
+    'recipe': RecipeCommand(),
 }
 
 def main():
     parser = argparse.ArgumentParser(description='LTTng Cluster')
-    parser.add_argument('-H', '--hosts', dest='hosts',
-                        metavar='HOST', type=str, help='hosts string')
-    parser.add_argument('-u', '--user', dest='user',
-                        default=os.getlogin(), metavar='USER',
-                        type=str, help='connection username')
     parser.add_argument('-v', '--verbose', dest='verbose',
                         action='store_true', default=False,
                         help='verbose mode')

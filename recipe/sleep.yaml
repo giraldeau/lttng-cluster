@@ -1,0 +1,12 @@
+name: sleep
+import: base
+roledefs: 
+ foo: localhost
+ bar: localhost
+execute:
+ - command: sleep 1
+   roles: foo
+   use_sudo: False
+ - command: sleep 1
+   roles: bar
+   use_sudo: True

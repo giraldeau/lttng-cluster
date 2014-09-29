@@ -1,8 +1,10 @@
 from collections import OrderedDict
-from fabric.api import task, run, parallel, env, get
+from fabric.api import task, run, parallel, env, get, settings
 from fabric.tasks import execute
 from os.path import dirname, basename, join
+import sys
 import time
+from traceback import print_exception
 import yaml
 
 
@@ -32,15 +34,19 @@ default_trace_dir = '~/lttng-traces'
 
 env.tracename = "default"
 
-def run_bg(cmd):
+def run_foreground(cmd):
+    run(cmd)
+
+def run_background(cmd):
     run('nohup %s > cmd.out 2> cmd.err < /dev/null &' % (cmd), pty=False)
 
 @parallel
 def trace_start(opts):
     dest = opts.get_trace_dir()
+    name = opts.get_session_name()
     run("lttng destroy -a")
     run("test -f /usr/local/bin/control-addons.sh && control-addons.sh load")
-    run("lttng create -o %s" % dest)
+    run("lttng create %s -o %s" % (name, dest))
     run("lttng enable-channel k -k --subbuf-size 16384 --num-subbuf 4096")
     kev = opts.get('events', {}).get('kernel', default_kernel_events)
     ev_string = ",".join(kev)
@@ -51,8 +57,10 @@ def trace_start(opts):
 
 @parallel
 def trace_stop(opts):
-    run("lttng stop")
-    run("lttng destroy -a")
+    name = opts.get_session_name()
+    with settings(warn_only=True):
+        run("lttng stop %s" % name)
+        run("lttng destroy %s" % name)
 
 @task
 def trace_fetch(opts):
@@ -73,15 +81,29 @@ def merge_dict(dst, src):
 
 class TraceRunnerDefault(object):
     '''Run an experiment under tracing'''
+    def __init__(self):
+        self._dry_run = False
+    def set_dry_run(self, dry_run):
+        self._dry_run = dry_run
     def run(self, exp):
         opts = exp.get_options()
         hosts_list = opts.get_hosts()
-        exp.before()
-        execute(trace_start, opts, hosts=hosts_list)
-        exp.action()
-        execute(trace_stop, opts, hosts=hosts_list)
+        success = True
+        try:
+            exp.before()
+            if not self._dry_run:
+                execute(trace_start, opts, hosts=hosts_list)
+            exp.action()
+        except Exception:
+            t, v, tb = sys.exc_info()
+            print_exception(t, v, tb)
+            success = False
+        finally:
+            if not self._dry_run:
+                execute(trace_stop, opts, hosts=hosts_list)
         exp.after()
-        execute(trace_fetch, opts, hosts=hosts_list)
+        if success and not self._dry_run:
+            execute(trace_fetch, opts, hosts=hosts_list)
 
 class RecipeErrorCollection(object):
     def __init__(self):
@@ -92,6 +114,9 @@ class RecipeErrorCollection(object):
 
     def __len__(self):
         return len(self.errors)
+
+    def __repr__(self):
+        return repr(self.errors)
 
 class TraceExperiment(object):
     '''Experiment definition'''
@@ -114,15 +139,16 @@ class TraceExperimentOptions(dict):
 
     default_options = {
         'name': default_trace_name,
-        'experiment': None,
+        'experiment': 'TraceExperimentShell',
         'username': default_username,
         'events': {
             'kernel': default_kernel_events,
             'userspace': default_userspace_events
         },
-        'rolesdef': {},
+        'roledefs': {},
         'params': {},
         'tracedir' : default_trace_dir,
+        'dry_run': False,
     }
 
     import_key = 'import'
@@ -157,35 +183,43 @@ class TraceExperimentOptions(dict):
                 name = basename(path[:-len(self.yaml_ext)])
                 self['name'] = name
             merge_dict(self, opt)
-        self._update_hosts()
+        # fix roledefs type
+        roles = self.get('roledefs', {})
+        for k, v in roles.items():
+            if not hasattr(v, '__iter__'):
+                roles[k] = [v]
 
     def load(self, stream):
         opt = yaml.load(stream)
         if opt is None:
             opt = {}
         merge_dict(self, opt)
-        self._update_hosts()
 
-    def get_trace_dir(self, **kwargs):
-        base = self.get('tracedir', default_trace_dir)
+    def get_session_name(self, **kwargs):
         name = self.get('name', default_trace_name)
         name = "%s-%s" % (name, self._time)
         for k, v in kwargs.items():
             name = "%s-%s=%s" % (name, k, v)
+        return name
+
+    def get_trace_dir(self, **kwargs):
+        base = self.get('tracedir', default_trace_dir)
+        name = self.get_session_name(**kwargs)
         return join(base, name)
 
     def get_hosts(self):
+        self._update_hosts()
         return self._hosts
 
     def _update_hosts(self):
         hosts = []
-        roles = self.get('rolesdef', {})
+        roles = self.get('roledefs', {})
         for k, v in roles.items():
             if isinstance(v, list):
                 hosts += v
             elif isinstance(v, str):
                 hosts.append(v)
             else:
-                raise TypeError("invalid type for rolesdef %s" % k)
+                raise TypeError("invalid type for roledefs %s" % k)
         self._hosts = list(OrderedDict.fromkeys(hosts))
 

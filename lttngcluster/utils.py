@@ -40,9 +40,27 @@ class RecipeChecker(DictCmpListener):
     def __init__(self, errors):
         self._errors = errors
         super(RecipeChecker, self).__init__()
+    def missing(self, d1, d2, path):
+        self._errors.add('.'.join(path))
 
 def recipe_verify(opts, required, errors):
-    cmp = DictCmp()
+    comp = DictCmp()
     checker = RecipeChecker(errors)
-    cmp.add_listener(checker)
-    cmp.compare(opts, required)
+    comp.add_listener(checker)
+    comp.compare(opts, required)
+
+def coerce_bool(v):
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        x = v.lower()
+        if x in ('yes', 'true'):
+            return True
+        if x in ('no', 'false'):
+            return False
+    if isinstance(v, int):
+        if v == 0:
+            return False
+        else:
+            return True
+    raise ValueError('boolean conversion failed: %s' % (v))

@@ -1,0 +1,20 @@
+username: ubuntu
+events:
+ kernel:
+  - sched_ttwu
+  - sched_switch
+  - sched_process_fork
+  - sched_process_exec
+  - sched_process_exit
+  - inet_sock_local_out
+  - inet_sock_local_in
+  - softirq_entry
+  - softirq_exit
+  - hrtimer_expire_entry
+  - hrtimer_expire_exit
+  - irq_handler_entry
+  - irq_handler_exit
+  - lttng_statedump_end
+  - lttng_statedump_process_state
+  - lttng_statedump_start
+

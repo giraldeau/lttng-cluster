@@ -108,17 +108,24 @@ def test_trace_dir():
 
 def test_recipe_validate():
     from lttngcluster.api import TraceExperimentOptions
-    from lttngcluster.experiments import shell, request
+    from lttngcluster.commands.recipe import recipe_verify, recipe_errors_show
     import pprint
+    import os
 
     from lttngcluster.experiments.reg import registry
 
-    exp = registry.experiments()
-    for k, v in exp.items():
-        print('class ' + k)
+    expected = {
+        'recipe_fail_key.yaml': 1,
+        'recipe_fail_role.yaml': 3,
+        'recipe_fail_type.yaml': 3,
+    }
+
+    for k, v in expected.items():
         err = RecipeErrorCollection()
-        v.validate(err)
-        pprint.pprint(err)
+        recipe = os.path.join('tests', 'cases', k)
+        recipe_verify(recipe, err)
+        recipe_errors_show(recipe, err)
+        assert len(err) == v
 
 class DictCmpListenerTest(DictCmpListener):
     def __init__(self):
@@ -157,3 +164,26 @@ def test_cmp_dict():
         assert check._status == exp
         check.reset()
 
+def test_coerce_bool():
+    from lttngcluster.utils import coerce_bool
+
+    cases = [
+        { 'input': True, 'exp': True },
+        { 'input': False, 'exp': False },
+        { 'input': 'true', 'exp': True },
+        { 'input': 'yes', 'exp': True },
+        { 'input': 'false', 'exp': False },
+        { 'input': 'no', 'exp': False },
+        { 'input': 1, 'exp': True },
+        { 'input': 0, 'exp': False },
+    ]
+
+    for case in cases:
+        assert coerce_bool(case['input']) == case['exp']
+
+    exc = None
+    try:
+        coerce_bool('foo')
+    except Exception as e:
+        exc = e
+    assert isinstance(exc, ValueError)
