@@ -32,6 +32,7 @@ default_userspace_events = []
 default_username = 'ubuntu'
 default_trace_name = 'auto'
 default_trace_dir = '~/lttng-traces'
+default_tmp_dir = '~/lttng-traces-tmp'
 
 env.tracename = "default"
 
@@ -43,7 +44,7 @@ def run_background(cmd):
 
 @parallel
 def trace_start(opts):
-    dest = opts.get_trace_dir_ctx()
+    dest = opts.get_trace_dir_ctx('tmpdir')
     name = opts.get_session_name_ctx()
     run("lttng destroy -a")
     run("test -f /usr/local/bin/control-addons.sh && control-addons.sh load")
@@ -65,12 +66,13 @@ def trace_stop(opts):
 
 @task
 def trace_fetch(opts):
-    dest = opts.get_trace_dir_ctx()
-    print("fetch trace %s" % (dest))
-    remote_src = join(dest, "*")
-    local_dst = join(dest, "%(host)s", "%(path)s")
+    dest_remote = opts.get_trace_dir_ctx('tmpdir')
+    dest_local = opts.get_trace_dir_ctx('tracedir')
+    print("fetch trace %s" % (dest_remote))
+    remote_src = join(dest_remote, "*")
+    local_dst = join(dest_local, "%(host)s", "%(path)s")
     get(remote_src, local_dst)
-    # run("rm -rf ~/lttng-traces/%s" % (env.tracename))
+    run('rm -rf %s' % (dest_remote))
 
 def merge_dict(dst, src):
     for k in src.keys():
@@ -157,6 +159,7 @@ class TraceExperimentOptions(dict):
         'roledefs': {},
         'parameters': {},
         'tracedir' : default_trace_dir,
+        'tmpdir': default_tmp_dir,
         'dry_run': False,
     }
 
@@ -220,11 +223,11 @@ class TraceExperimentOptions(dict):
             name = "%s-%s=%s" % (name, k, v)
         return name
 
-    def get_trace_dir_ctx(self):
-        return self.get_trace_dir(**self._current_context)
+    def get_trace_dir_ctx(self, kind='tracedir'):
+        return self.get_trace_dir(kind, **self._current_context)
 
-    def get_trace_dir(self, **kwargs):
-        base = self.get('tracedir', default_trace_dir)
+    def get_trace_dir(self, kind='tracedir', **kwargs):
+        base = self.get(kind, default_trace_dir)
         name = self.get_session_name(**kwargs)
         return join(base, name)
 
