@@ -2,6 +2,6 @@ name: sleep
 import: base
 experiment: TraceExperimentShell
 roledefs:
-  - target: localhost
+  target: localhost
 execute:
   super: bidon

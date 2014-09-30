@@ -117,7 +117,7 @@ def test_recipe_validate():
     expected = {
         'recipe_fail_key.yaml': 1,
         'recipe_fail_role.yaml': 3,
-        'recipe_fail_type.yaml': 3,
+        'recipe_fail_type.yaml': 2,
     }
 
     for k, v in expected.items():

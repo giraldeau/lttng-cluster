@@ -185,6 +185,8 @@ class TraceExperimentOptions(dict):
             merge_dict(self, opt)
         # fix roledefs type
         roles = self.get('roledefs', {})
+        if not isinstance(roles, dict):
+            raise ValueError('roledefs must be a dict: %s' % path)
         for k, v in roles.items():
             if not hasattr(v, '__iter__'):
                 roles[k] = [v]
