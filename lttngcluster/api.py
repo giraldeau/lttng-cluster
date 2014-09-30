@@ -43,8 +43,8 @@ def run_background(cmd):
 
 @parallel
 def trace_start(opts):
-    dest = opts.get_trace_dir()
-    name = opts.get_session_name()
+    dest = opts.get_trace_dir_ctx()
+    name = opts.get_session_name_ctx()
     run("lttng destroy -a")
     run("test -f /usr/local/bin/control-addons.sh && control-addons.sh load")
     run("lttng create %s -o %s" % (name, dest))
@@ -58,14 +58,14 @@ def trace_start(opts):
 
 @parallel
 def trace_stop(opts):
-    name = opts.get_session_name()
+    name = opts.get_session_name_ctx()
     with settings(warn_only=True):
         run("lttng stop %s" % name)
         run("lttng destroy %s" % name)
 
 @task
 def trace_fetch(opts):
-    dest = opts.get_trace_dir()
+    dest = opts.get_trace_dir_ctx()
     print("fetch trace %s" % (dest))
     remote_src = join(dest, "*")
     local_dst = join(dest, "%(host)s", "%(path)s")
@@ -88,6 +88,13 @@ class TraceRunnerDefault(object):
         self._dry_run = dry_run
     def run(self, exp):
         opts = exp.get_options()
+        for ctx in opts.context_generator():
+            status = self._run_one(exp)
+            if not status:
+                break
+
+    def _run_one(self, exp):
+        opts = exp.get_options()
         hosts_list = opts.get_hosts()
         success = True
         try:
@@ -105,6 +112,7 @@ class TraceRunnerDefault(object):
         exp.after()
         if success and not self._dry_run:
             execute(trace_fetch, opts, hosts=hosts_list)
+        return success
 
 class RecipeErrorCollection(object):
     def __init__(self):
@@ -160,7 +168,7 @@ class TraceExperimentOptions(dict):
         self._loaded = []
         self._hosts = []
         self._time = time.strftime("%Y%m%d-%H%M%S")
-        self._context_current = {}
+        self._current_context = {}
         super(TraceExperimentOptions, self).__init__(*args, **kwargs)
 
     def load_path(self, path):
@@ -202,12 +210,18 @@ class TraceExperimentOptions(dict):
             opt = {}
         merge_dict(self, opt)
 
+    def get_session_name_ctx(self):
+        return self.get_session_name(**self._current_context)
+
     def get_session_name(self, **kwargs):
         name = self.get('name', default_trace_name)
         name = "%s-%s" % (name, self._time)
         for k, v in kwargs.items():
             name = "%s-%s=%s" % (name, k, v)
         return name
+
+    def get_trace_dir_ctx(self):
+        return self.get_trace_dir(**self._current_context)
 
     def get_trace_dir(self, **kwargs):
         base = self.get('tracedir', default_trace_dir)
