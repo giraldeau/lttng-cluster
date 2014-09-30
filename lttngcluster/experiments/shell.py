@@ -4,10 +4,16 @@ from fabric.operations import local, sudo
 from fabric.state import env
 from fabric.tasks import execute
 
-from lttngcluster.api import TraceExperiment, run_foreground
+from lttngcluster.api import TraceExperiment, run_foreground, run_background
 from lttngcluster.experiments.reg import registry
 from lttngcluster.utils import coerce_bool
 
+default_method = 'foreground'
+
+run_methods = {
+    'foreground': run_foreground,
+    'background': run_background,
+}
 
 class TraceExperimentShell(TraceExperiment):
     def __init__(self):
@@ -52,11 +58,14 @@ class TraceExperimentShell(TraceExperiment):
             if not cmd.has_key('command') or \
                 not isinstance(cmd.get('command'), str):
                 raise ValueError('wrong command')
-            use_sudo = coerce_bool(cmd.get('use_sudo', False))
+            method = cmd.get('method', default_method)
+            if not run_methods.has_key(method):
+                raise ValueError('wrong run method: %s' % (method))
+            func = run_methods[method]
             roles = cmd.get('roles', [])
             if not hasattr(roles, '__iter__'):
                 roles = [roles]
             command = cmd.get('command')
-            execute(run_foreground, command, roles=roles)
+            execute(func, command, roles=roles)
 
 registry.register(TraceExperimentShell)
