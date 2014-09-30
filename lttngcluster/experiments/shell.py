@@ -65,7 +65,7 @@ class TraceExperimentShell(TraceExperiment):
             roles = cmd.get('roles', [])
             if not hasattr(roles, '__iter__'):
                 roles = [roles]
-            command = cmd.get('command')
+            command = cmd.get('command') % opts.get_context()
             execute(func, command, roles=roles)
 
 registry.register(TraceExperimentShell)

@@ -7,6 +7,8 @@ execute:
  - command: sleep 1
    roles: foo
    method: background
- - command: sleep 1
+ - command: sleep %(delay)d
    roles: bar
    method: foreground
+parameters:
+ delay: [ 1, 2, 3 ]

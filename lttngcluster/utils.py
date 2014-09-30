@@ -64,3 +64,17 @@ def coerce_bool(v):
         else:
             return True
     raise ValueError('boolean conversion failed: %s' % (v))
+
+def dict_product(params):
+    import itertools
+    keys = []
+    values = []
+    for k, v in params.items():
+        keys.append(k)
+        values.append(v)
+    prod = itertools.product(*values)
+    for item in prod:
+        d = {}
+        for k, v in zip(keys, item):
+            d[k] = v
+        yield d

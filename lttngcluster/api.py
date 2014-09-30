@@ -6,6 +6,7 @@ import sys
 import time
 from traceback import print_exception
 import yaml
+from lttngcluster.utils import dict_product
 
 
 default_kernel_events = [
@@ -146,7 +147,7 @@ class TraceExperimentOptions(dict):
             'userspace': default_userspace_events
         },
         'roledefs': {},
-        'params': {},
+        'parameters': {},
         'tracedir' : default_trace_dir,
         'dry_run': False,
     }
@@ -159,6 +160,7 @@ class TraceExperimentOptions(dict):
         self._loaded = []
         self._hosts = []
         self._time = time.strftime("%Y%m%d-%H%M%S")
+        self._context_current = {}
         super(TraceExperimentOptions, self).__init__(*args, **kwargs)
 
     def load_path(self, path):
@@ -190,6 +192,9 @@ class TraceExperimentOptions(dict):
         for k, v in roles.items():
             if not hasattr(v, '__iter__'):
                 roles[k] = [v]
+        parameters = self.get('parameters', {})
+        if not isinstance(parameters, dict):
+            raise ValueError('parameters must be a dict: %s' % path)
 
     def load(self, stream):
         opt = yaml.load(stream)
@@ -212,6 +217,16 @@ class TraceExperimentOptions(dict):
     def get_hosts(self):
         self._update_hosts()
         return self._hosts
+
+    def get_context(self):
+        return self._current_context
+
+    def context_generator(self):
+        parameters = self.get('parameters', {})
+        context = dict_product(parameters)
+        for ctx in context:
+            self._current_context = ctx
+            yield ctx
 
     def _update_hosts(self):
         hosts = []

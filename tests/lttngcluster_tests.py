@@ -187,3 +187,31 @@ def test_coerce_bool():
     except Exception as e:
         exc = e
     assert isinstance(exc, ValueError)
+
+def test_experiment_parameters():
+    from lttngcluster.utils import dict_product
+    parameters = { 'foo': [ 1, 2, 3 ],
+                   'bar': [ 4, 5, 6 ],
+                   'baz': [ 7, 8, 9 ],
+    }
+    ctx = dict_product(parameters)
+    context_list = []
+    for context in ctx:
+        context_list.append(context)
+    assert len(context_list) == 27
+
+def test_option_context():
+    from lttngcluster.api import TraceExperimentOptions
+
+    opts = TraceExperimentOptions()
+    opts['parameters'] = {
+        'delay': [1, 2, 3]
+    }
+
+    exp = [ { 'delay': 1 }, { 'delay': 2 }, { 'delay': 3 } ]
+    act = []
+    for ctx in opts.context_generator():
+        assert ctx == opts.get_context()
+        assert ctx == opts.get_context()
+        act.append(ctx)
+    assert exp == act
