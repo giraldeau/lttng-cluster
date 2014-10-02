@@ -1,0 +1,19 @@
+name: wk-rpc
+import: base
+roledefs: 
+ client: wk-rpc-client.phd.vm
+ server: wk-rpc-server.phd.vm
+execute:
+ - command: wk-rpc-server 0.0.0.0 9876
+   roles: server
+   method: background
+ - command: rm -f ~/.wk-calibrate; wk-rpc-client --server wk-rpc-server.phd.vm --command hog --async 0 --delay 1; sleep 1
+   roles: client
+ - command: wk-rpc-client --server wk-rpc-server.phd.vm --command hog --async 0 --delay 20
+   roles: client
+ - command: wk-rpc-client --server wk-rpc-server.phd.vm --command hog --async 10 --delay 20
+   roles: client
+ - command: wk-rpc-client --server wk-rpc-server.phd.vm --command hog --async 20 --delay 20
+   roles: client
+ - command: pkill wk-rpc-server
+   roles: server

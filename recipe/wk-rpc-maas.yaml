@@ -1,0 +1,5 @@
+name: wk-rpc-maas
+import: wk-rpc
+roledefs: 
+ client: node1
+ server: node2
