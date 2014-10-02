@@ -14,6 +14,7 @@ sudo apt-get install -q -y liblttng-ust-dev libsensors4-dev build-essential auto
 
 test -e ~/workload-kit || git clone https://github.com/giraldeau/workload-kit.git ~/workload-kit
 cd ~/workload-kit
+git pull
 ./bootstrap
 ./configure
 make -j4
