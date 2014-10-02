@@ -98,6 +98,7 @@ class TraceRunnerDefault(object):
     def _run_one(self, exp):
         opts = exp.get_options()
         hosts_list = opts.get_hosts()
+        env.user = opts['username']
         success = True
         try:
             exp.before()
