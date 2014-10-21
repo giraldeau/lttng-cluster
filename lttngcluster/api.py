@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from fabric.api import task, run, parallel, env, get, settings
+from fabric.api import task, run, local, parallel, env, get, settings
 from fabric.tasks import execute
 from os.path import dirname, basename, join
 import sys
@@ -35,6 +35,9 @@ default_trace_dir = '~/lttng-traces'
 default_tmp_dir = '~/lttng-traces-tmp'
 
 env.tracename = "default"
+
+def run_local(cmd):
+    local(cmd)
 
 def run_foreground(cmd):
     run(cmd)

@@ -73,6 +73,7 @@ class RecipeCommand(BaseCommand):
         parser.add_argument('--dry-run', '-n', action='store_true', help='execute action without tracing')
 
     def handle(self, args):
+        env.forward_agent = True
         env.abort_on_prompts = True
         exe = self.actions[args.action]
         try:
