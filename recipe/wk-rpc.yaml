@@ -3,17 +3,26 @@ import: base
 roledefs: 
  client: wk-rpc-client.phd.vm
  server: wk-rpc-server.phd.vm
+ host: localhost
 execute:
  - command: wk-rpc-server 0.0.0.0 9876
    roles: server
    method: background
- - command: rm -f ~/.wk-calibrate; wk-rpc-client --server wk-rpc-server.phd.vm --command hog --async 0 --delay 1; sleep 1
+ - command: rm -f ~/.wk-calibrate; wk-rpc-client --server %(srv)s --command hog --async 0 --delay 1; sleep 1
    roles: client
- - command: wk-rpc-client --server wk-rpc-server.phd.vm --command hog --async 0 --delay 20
+ - command: sudo tc qdisc add dev %(vmnet)s root netem delay %(lag)dms
+   roles: host
+ - command: wk-rpc-client --server %(srv)s --command hog --async 0 --delay 20
    roles: client
- - command: wk-rpc-client --server wk-rpc-server.phd.vm --command hog --async 10 --delay 20
+ - command: wk-rpc-client --server %(srv)s --command hog --async 10 --delay 20
    roles: client
- - command: wk-rpc-client --server wk-rpc-server.phd.vm --command hog --async 20 --delay 20
+ - command: wk-rpc-client --server %(srv)s --command hog --async 20 --delay 20
    roles: client
+ - command: sudo tc qdisc del dev %(vmnet)s root
+   roles: host
  - command: pkill wk-rpc-server
    roles: server
+parameters:
+ srv: [ wk-rpc-server.phd.vm ]
+ vmnet: [ vnet4 ]
+ lag: [ 0, 1, 10, 100 ]
